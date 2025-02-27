@@ -189,14 +189,29 @@ def preprocess_coordinates(data):
     
     return processed_data
 
-def train_model(train_paths, batch_size=32, num_epochs=100, learning_rate=0.001):
-    """改进的训练函数"""
+def train_model(train_paths, batch_size=32, num_epochs=200, learning_rate=0.001, val_ratio=0.3):
+    """改进的训练函数，添加验证集划分"""
     # 加载数据
     print("Loading training data...")
-    X_train, y_train = load_multiple_datasets(train_paths)
+    X_all, y_all = load_multiple_datasets(train_paths)
     
     # 转换为相对坐标
-    y_train = preprocess_coordinates(y_train)
+    y_all = preprocess_coordinates(y_all)
+    
+    # 随机打乱数据
+    indices = np.random.permutation(len(X_all))
+    split_idx = int(len(X_all) * (1 - val_ratio))
+    
+    # 划分训练集和验证集
+    train_indices = indices[:split_idx]
+    val_indices = indices[split_idx:]
+    
+    X_train, y_train = X_all[train_indices], y_all[train_indices]
+    X_val, y_val = X_all[val_indices], y_all[val_indices]
+    
+    print(f"\nData split:")
+    print(f"Training samples: {len(X_train)}")
+    print(f"Validation samples: {len(X_val)}")
     
     # 标准化数据
     X_scaler = StandardScaler()
@@ -205,13 +220,19 @@ def train_model(train_paths, batch_size=32, num_epochs=100, learning_rate=0.001)
     X_train = X_scaler.fit_transform(X_train)
     y_train = y_scaler.fit_transform(y_train)
     
+    # 对验证集使用相同的标准化器
+    X_val = X_scaler.transform(X_val)
+    y_val = y_scaler.transform(y_val)
+    
     # 保存标准化器
     joblib.dump(X_scaler, 'X_scaler.joblib')
     joblib.dump(y_scaler, 'y_scaler.joblib')
     
     # 创建数据加载器
-    dataset = MarkerDataset(X_train, y_train)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    train_dataset = MarkerDataset(X_train, y_train)
+    val_dataset = MarkerDataset(X_val, y_val)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size)
     
     # 初始化模型
     input_size = X_train.shape[1]
@@ -232,46 +253,64 @@ def train_model(train_paths, batch_size=32, num_epochs=100, learning_rate=0.001)
     criterion = nn.MSELoss()
     
     # 训练循环
-    best_loss = float('inf')
+    best_val_loss = float('inf')
     patience = 10
     patience_counter = 0
     
+    print("\nStarting training...")
     for epoch in range(num_epochs):
+        # 训练阶段
         model.train()
-        total_loss = 0
-        
-        for batch_X, batch_y in dataloader:
+        train_loss = 0
+        for batch_X, batch_y in train_loader:
             batch_X = batch_X.to(device)
             batch_y = batch_y.to(device)
             
-            # 前向传播
+            optimizer.zero_grad()
             predictions = model(batch_X)
             loss = criterion(predictions, batch_y)
-            
-            # 反向传播
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
-            total_loss += loss.item()
+            train_loss += loss.item()
         
-        # 计算平均损失
-        avg_loss = total_loss / len(dataloader)
-        print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
+        avg_train_loss = train_loss / len(train_loader)
+        
+        # 验证阶段
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for batch_X, batch_y in val_loader:
+                batch_X = batch_X.to(device)
+                batch_y = batch_y.to(device)
+                
+                predictions = model(batch_X)
+                loss = criterion(predictions, batch_y)
+                val_loss += loss.item()
+        
+        avg_val_loss = val_loss / len(val_loader)
+        
+        print(f"Epoch {epoch+1}/{num_epochs}")
+        print(f"Training Loss: {avg_train_loss:.4f}")
+        print(f"Validation Loss: {avg_val_loss:.4f}")
         
         # 学习率调整
-        scheduler.step(avg_loss)
+        scheduler.step(avg_val_loss)
         
         # 早停
-        if avg_loss < best_loss:
-            best_loss = avg_loss
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
             patience_counter = 0
             # 保存最佳模型
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'input_size': X_train.shape[1]
+                'input_size': input_size,
+                'train_loss': avg_train_loss,
+                'val_loss': avg_val_loss,
+                'epoch': epoch
             }, 'marker_predictor.pth')
+            print("Saved best model checkpoint")
         else:
             patience_counter += 1
             if patience_counter >= patience:
@@ -285,18 +324,25 @@ def main():
     train_paths = [
         "/home/zfb/Grounded-SAM-2/Take 2025-02-21 03.15.24 PM",  # 无负载
         "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.37.57 PMVoid",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-26 03.11.43 PMpic",
+    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.42.18 PMvoid2",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-24 03.18.43 PM movingbox",    # Cubic Rigid Object
-        "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.29.36 AMbox2",
-        "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.25.27 AMbox",           # Cubic Rigid Object
         "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.45.23 PMboxnew",
+    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.29.36 AMbox2",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.25.27 AMbox",           # Cubic Rigid Object
         "/home/zfb/Grounded-SAM-2/Take 2025-02-22 11.26.11 AM",            # Irregular Rigid Object
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-21 03.39.06 PM",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.14.27 AMpineapple",
+    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.20.22 AMpineaple2",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-22 11.33.27 AM",            # Irregular Rigid Object
-        "/home/zfb/Grounded-SAM-2/Take 2025-02-23 02.01.39 PM haimian",
+    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-23 02.01.39 PM haimian",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-23 02.13.51 PMmovehaimian",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-24 03.22.59 PMmovingHaimian",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-24 08.30.48 PMHaimian2",   # Soft Object
-        "/home/zfb/Grounded-SAM-2/Take 2025-02-24 08.41.33 PMmovingHaimian2" # Soft Object
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-24 08.36.26 PMHaimian3",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-24 08.41.33 PMmovingHaimian2", # Soft Object
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-24 08.44.39 PMmovingHaimian3"
+    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-24 08.47.50 PMmovingHaimian4"
     ]
     
     # 训练模型
