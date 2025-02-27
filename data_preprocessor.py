@@ -1,3 +1,16 @@
+"""
+Data Preprocessor Module for Grounded-SAM-2
+
+This module provides functionality for data preprocessing and manipulation in the Grounded-SAM-2 project.
+It includes a DataPreprocessor class that handles various data processing tasks such as:
+- Data loading and transformation
+- Data visualization
+- Data analysis and preprocessing operations
+
+Author: Unknown
+Date: 2025-02-27
+"""
+
 import pandas as pd
 import numpy as np
 from pathlib import Path
