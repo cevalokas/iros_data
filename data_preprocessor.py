@@ -443,8 +443,8 @@ def main():
     preprocessor = DataPreprocessor()
     
     # 更新数据路径
-    base_path = Path("/home/zfb/Grounded-SAM-2/Take 2025-02-26 03.11.43 PMpic")
-    mocap_path = base_path / "Take 2025-02-26 03.11.43 PM.csv"
+    base_path = Path("/home/cch/Grounded-SAM-2/iros_data/Take 2025-02-28 12.35.38 PMnew")
+    mocap_path = base_path / "Take 2025-02-28 12.35.38 PM.csv"
     imu_path = base_path / "imu_data_1511.csv"
     features_path = base_path / "features/feature2.npy"
     video_dir = base_path / "frames"
@@ -460,31 +460,31 @@ def main():
     print(mocap_df.columns.tolist())
     
     # Check if we have any data in the relative position columns
-    rel_cols = [col for col in mocap_df.columns if '_rel_' in col]
-    print("\nChecking relative position data:")
-    for col in rel_cols:
-        data = mocap_df[col]
-        print(f"{col}: Range [{data.min():.2f}, {data.max():.2f}], Mean: {data.mean():.2f}")
+    # rel_cols = [col for col in mocap_df.columns if '_rel_' in col]
+    # print("\nChecking relative position data:")
+    # for col in rel_cols:
+    #     data = mocap_df[col]
+    #     print(f"{col}: Range [{data.min():.2f}, {data.max():.2f}], Mean: {data.mean():.2f}")
     
-    # Create visualization for a single frame
-    vis_path = Path(mocap_path).parent / "marker_positions.png"
-    preprocessor.visualize_markers(mocap_df, frame_idx=1000, save_path=vis_path)
-    print(f"Saved static visualization to {vis_path}")
+    # # Create visualization for a single frame
+    # vis_path = Path(mocap_path).parent / "marker_positions.png"
+    # preprocessor.visualize_markers(mocap_df, frame_idx=1000, save_path=vis_path)
+    # print(f"Saved static visualization to {vis_path}")
     
-    # Create animation
-    anim_path = Path(mocap_path).parent / "marker_animation.gif"
-    preprocessor.create_animation(mocap_df, anim_path, interval=50)
-    print(f"Saved animation to {anim_path}")
+    # # Create animation
+    # anim_path = Path(mocap_path).parent / "marker_animation.gif"
+    # preprocessor.create_animation(mocap_df, anim_path, interval=50)
+    # print(f"Saved animation to {anim_path}")
     
-    # Process the rest of the data
-    print("\nProcessing IMU and feature data...")
-    X, y, result_df = preprocessor.process_data(mocap_path, imu_path, features_path, video_dir)
+    # # Process the rest of the data
+    # print("\nProcessing IMU and feature data...")
+    # X, y, result_df = preprocessor.process_data(mocap_path, imu_path, features_path, video_dir)
     
-    print("\nData saved to:")
-    print(f"- {base_path / 'processed_data.csv'}")
-    print(f"- {base_path / 'processed_X.npy'}")
-    print(f"- {base_path / 'processed_y.npy'}")
-    print("Done!")
+    # print("\nData saved to:")
+    # print(f"- {base_path / 'processed_data.csv'}")
+    # print(f"- {base_path / 'processed_X.npy'}")
+    # print(f"- {base_path / 'processed_y.npy'}")
+    # print("Done!")
 
 if __name__ == "__main__":
     main() 
