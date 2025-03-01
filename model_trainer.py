@@ -258,10 +258,19 @@ def train_model(train_paths, batch_size=32, num_epochs=200, learning_rate=0.001,
     patience_counter = 0
     
     print("\nStarting training...")
+    train_losses = []
+    val_losses = []
+    precisions = []
+    recalls = []
     for epoch in range(num_epochs):
         # 训练阶段
         model.train()
         train_loss = 0
+        train_correct = 0
+        train_total = 0
+        train_false_positives = 0
+        train_false_negatives = 0
+        
         for batch_X, batch_y in train_loader:
             batch_X = batch_X.to(device)
             batch_y = batch_y.to(device)
@@ -273,12 +282,37 @@ def train_model(train_paths, batch_size=32, num_epochs=200, learning_rate=0.001,
             optimizer.step()
             
             train_loss += loss.item()
+            
+            # 计算precision和recall
+            threshold = 5.0  # 5mm的误差阈值
+            pred_coords = predictions.detach().cpu().numpy()
+            true_coords = batch_y.cpu().numpy()
+            
+            # 计算每个点的欧氏距离
+            distances = np.sqrt(np.sum((pred_coords - true_coords) ** 2, axis=1))
+            
+            # 对每个点分别计算TP, FP, FN
+            true_positives = (distances < threshold).sum()
+            false_positives = (distances >= threshold).sum()
+            false_negatives = (distances >= threshold).sum()
+            
+            # 更新计数器
+            train_correct += true_positives
+            train_total += len(distances)
+            train_false_positives += false_positives
+            train_false_negatives += false_negatives
         
         avg_train_loss = train_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
         
         # 验证阶段
         model.eval()
         val_loss = 0
+        val_correct = 0
+        val_total = 0
+        val_false_positives = 0
+        val_false_negatives = 0
+        
         with torch.no_grad():
             for batch_X, batch_y in val_loader:
                 batch_X = batch_X.to(device)
@@ -287,27 +321,54 @@ def train_model(train_paths, batch_size=32, num_epochs=200, learning_rate=0.001,
                 predictions = model(batch_X)
                 loss = criterion(predictions, batch_y)
                 val_loss += loss.item()
+                
+                # 计算precision和recall
+                pred_coords = predictions.cpu().numpy()
+                true_coords = batch_y.cpu().numpy()
+                distances = np.sqrt(np.sum((pred_coords - true_coords) ** 2, axis=1))
+                true_positives = (distances < threshold).sum()
+                false_positives = (distances >= threshold).sum()
+                false_negatives = (distances >= threshold).sum()
+                
+                val_correct += true_positives
+                val_total += len(distances)
+                val_false_positives += false_positives
+                val_false_negatives += false_negatives
         
         avg_val_loss = val_loss / len(val_loader)
+        val_losses.append(avg_val_loss)
+        
+        # 计算epoch的平均指标
+        epoch_train_loss = train_loss / len(train_loader)
+        epoch_val_loss = val_loss / len(val_loader)
+        epoch_precision = val_correct / (val_correct + val_false_positives + 1e-8)  # 添加小值避免除零
+        epoch_recall = val_correct / (val_correct + val_false_negatives + 1e-8)
+        
+        # 记录指标
+        train_losses.append(epoch_train_loss)
+        val_losses.append(epoch_val_loss)
+        precisions.append(epoch_precision)
+        recalls.append(epoch_recall)
         
         print(f"Epoch {epoch+1}/{num_epochs}")
-        print(f"Training Loss: {avg_train_loss:.4f}")
-        print(f"Validation Loss: {avg_val_loss:.4f}")
+        print(f"Training Loss: {epoch_train_loss:.4f}")
+        print(f"Validation Loss: {epoch_val_loss:.4f}")
+        print(f"Precision: {epoch_precision:.4f}, Recall: {epoch_recall:.4f}")
         
         # 学习率调整
-        scheduler.step(avg_val_loss)
+        scheduler.step(epoch_val_loss)
         
         # 早停
-        if avg_val_loss < best_val_loss:
-            best_val_loss = avg_val_loss
+        if epoch_val_loss < best_val_loss:
+            best_val_loss = epoch_val_loss
             patience_counter = 0
             # 保存最佳模型
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'input_size': input_size,
-                'train_loss': avg_train_loss,
-                'val_loss': avg_val_loss,
+                'train_loss': epoch_train_loss,
+                'val_loss': epoch_val_loss,
                 'epoch': epoch
             }, 'marker_predictor.pth')
             print("Saved best model checkpoint")
@@ -317,7 +378,11 @@ def train_model(train_paths, batch_size=32, num_epochs=200, learning_rate=0.001,
                 print("Early stopping triggered")
                 break
     
-    return model
+    # 训练结束后绘制图表
+    plot_training_metrics(train_losses, val_losses)
+    plot_precision_recall(precisions, recalls)
+    
+    return model, train_losses, val_losses
 
 def main():
     # 设置训练数据路径
@@ -325,7 +390,11 @@ def main():
         "/home/zfb/Grounded-SAM-2/Take 2025-02-21 03.15.24 PM",  # 无负载
         "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.37.57 PMVoid",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-26 03.11.43 PMpic",
-    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.42.18 PMvoid2",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-27 05.33.57 PMvoid",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-27 06.49.54 PMvoid",
+    #    "/home/zfb/Grounded-SAM-2/Take 2025-02-27 06.56.51 PMvoid",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-27 06.53.10 PMvoid",
+        "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.42.18 PMvoid2",
         "/home/zfb/Grounded-SAM-2/Take 2025-02-24 03.18.43 PM movingbox",    # Cubic Rigid Object
         "/home/zfb/Grounded-SAM-2/Take 2025-02-25 05.45.23 PMboxnew",
     #    "/home/zfb/Grounded-SAM-2/Take 2025-02-25 11.29.36 AMbox2",
@@ -346,8 +415,48 @@ def main():
     ]
     
     # 训练模型
-    model = train_model(train_paths)
+    model, train_losses, val_losses = train_model(train_paths)
     print("Training completed!")
+
+    # 绘制训练过程中loss的变化
+    plot_training_metrics(train_losses, val_losses)
+
+def plot_training_metrics(train_losses, val_losses, save_path='training_loss.png'):
+    """绘制训练过程中loss的变化"""
+    plt.figure(figsize=(10, 6))
+    
+    epochs = range(1, len(train_losses) + 1)
+    plt.plot(epochs, train_losses, 'b', label='Training Loss')
+    plt.plot(epochs, val_losses, 'r', label='Validation Loss')
+    
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+def plot_precision_recall(precisions, recalls, save_path='precision_recall.png'):
+    """绘制训练过程中precision和recall的变化"""
+    plt.figure(figsize=(10, 6))
+    
+    epochs = range(1, len(precisions) + 1)
+    plt.plot(epochs, precisions, 'g', label='Precision')
+    plt.plot(epochs, recalls, 'b', label='Recall')
+    
+    plt.title('Precision and Recall Over Training')
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.grid(True)
+    
+    # 设置y轴范围为0-1
+    plt.ylim(0, 1)
+    
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 if __name__ == "__main__":
     main()
