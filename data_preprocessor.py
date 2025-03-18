@@ -1,14 +1,52 @@
 """
-Data Preprocessor Module for Grounded-SAM-2
+Grounded-SAM-2项目的数据预处理模块
 
-This module provides functionality for data preprocessing and manipulation in the Grounded-SAM-2 project.
-It includes a DataPreprocessor class that handles various data processing tasks such as:
-- Data loading and transformation
-- Data visualization
-- Data analysis and preprocessing operations
+功能说明：
+1. 运动捕捉(MoCap)数据处理：
+   - 读取原始MoCap CSV文件
+   - 提取帧率和时间信息
+   - 处理九个标记点的位置数据
+   - 生成处理后的CSV文件
 
-Author: Unknown
-Date: 2025-02-27
+2. IMU数据处理：
+   - 读取原始IMU数据
+   - 过滤特定传感器ID的数据
+   - 处理时间戳信息
+
+3. 特征数据处理：
+   - 加载提取的特征数据
+   - 处理缺失特征情况
+
+4. 数据对齐与集成：
+   - 将MoCap、IMU和视频特征数据对齐到同一时间轴
+   - 调整采样率到目标帧率
+   - 生成统一的数据格式
+
+使用方法：
+1. 初始化处理器：
+   preprocessor = DataPreprocessor()
+
+2. 处理MoCap数据：
+   mocap_data = preprocessor.load_mocap_data('mocap_file.csv')
+
+3. 处理IMU数据：
+   imu_data = preprocessor.load_imu_data('imu_file.csv')
+
+4. 集成处理：
+   preprocessor.process_data(
+       mocap_path='mocap.csv',
+       imu_path='imu.csv',
+       features_path='features.npy',
+       video_dir='video_dir',
+       target_fps=5
+   )
+
+输出文件：
+- processed_mocap.csv: 处理后的MoCap数据
+- 处理后的数据将包含对齐的时间戳和标准化的特征
+
+作者：未知
+日期：2025-02-27
 """
 
 import pandas as pd

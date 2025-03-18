@@ -1,3 +1,51 @@
+"""
+模型评估与可视化工具。
+
+功能：
+1. 模型评估：
+   - 加载训练好的模型和标准化器
+   - 计算预测的准确性指标
+   - 计算形状相似度指标
+
+2. 可视化功能：
+   - 绘制轨迹对比图
+   - 生成三维可视化对比
+   - 创建动态预测动画
+   - 绘制热力图和距离对比图
+
+3. 统计分析：
+   - 分场景分析预测性能
+   - 分析不同感知方式的效果
+   - 生成评估报告和可视化结果
+
+使用方法：
+1. 加载模型和进行评估：
+   model, X_scaler, y_scaler = load_model_and_scalers()
+   evaluate_scenario(test_path, model, X_scaler, y_scaler)
+
+2. 生成可视化结果：
+   plot_trajectory_comparison(y_test, y_pred, save_dir)
+   visualize_3d_comparison(y_test, y_pred, frame_idx, save_dir)
+   visualize_predictions(true_positions, pred_positions, output_path)
+
+3. 生成统计分析：
+   metrics = calculate_shape_metrics(true_pos, pred_pos)
+   plot_error_heatmaps(test_scenarios, model, X_scaler, y_scaler)
+
+输出文件：
+- 轨迹对比图 (.png)
+- 3D可视化图 (.png)
+- 预测动画 (.gif)
+- 评估指标报告
+
+依赖库：
+- numpy
+- torch
+- pandas
+- matplotlib
+- seaborn
+"""
+
 import numpy as np
 import torch
 import pandas as pd

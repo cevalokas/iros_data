@@ -1,3 +1,58 @@
+"""
+视频对象特征提取器。
+
+功能：
+1. 视频处理：
+   - 按指定帧率采样视频帧
+   - 保存帧图像和时间戳
+   - 支持异步加载和内存优化
+
+2. 对象检测与跟踪：
+   - 使用SAM2和Grounding DINO进行对象检测
+   - 基于颜色和大小的对象识别
+   - 计算对象分数和相对位置
+
+3. 特征提取：
+   - 使用ResNet34提取视觉特征
+   - 支持float16精度优化
+   - 内存管理和性能优化
+
+使用方法：
+1. 初始化特征提取器：
+   extractor = VideoObjectFeatureExtractor(
+       sam2_checkpoint="./checkpoints/sam2.1_hiera_large.pt",
+       sam2_model_config="configs/sam2.1/sam2.1_hiera_l.yaml",
+       grounding_dino_config="grounding_dino/config/GroundingDINO_SwinT_OGC.py",
+       grounding_dino_checkpoint="gdino_checkpoints/groundingdino_swint_ogc.pth"
+   )
+
+2. 处理视频：
+   extractor.process_video(
+       video_path="video.mp4",
+       text_prompt="green marker",
+       output_dir="./features",
+       target_fps=5
+   )
+
+输出文件：
+- frames/: 提取的视频帧
+- features/: 提取的特征数据
+- annotated_frames/: 标注后的帧图像
+- frame_timestamps.npy: 帧时间戳数据
+
+依赖库：
+- opencv-python
+- torch
+- numpy
+- PIL
+- supervision
+
+注意事项：
+1. 需要CUDA支持以获得最佳性能
+2. 确保有足够的GPU内存
+3. 建议使用SSD存储以提高IO性能
+"""
+
 import os
 import cv2
 import torch

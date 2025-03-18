@@ -1,3 +1,55 @@
+"""
+模型训练与特征融合模块。
+
+功能：
+1. 模型架构：
+   - 基于注意力机制的标记点预测器
+   - 特征融合模块用于处理视觉和IMU特征
+   - 深度残差网络结构
+   - 双向LSTM用于时序建模
+
+2. 数据处理：
+   - 自定义Dataset类用于数据加载
+   - 坐标转换为相对位置
+   - 批量数据加载与处理
+
+3. 训练功能：
+   - 支持多数据集训练
+   - 自动验证集划分
+   - 学习率调整与早停
+   - 模型保存与加载
+
+使用方法：
+1. 训练模型：
+   train_paths = ['dataset1/', 'dataset2/']
+   train_model(train_paths, batch_size=32, num_epochs=200)
+
+2. 加载数据：
+   X, y = load_multiple_datasets(train_paths)
+
+3. 坐标预处理：
+   processed_coords = preprocess_coordinates(data)
+
+模型结构：
+- 注意力层：AttentionLayer
+- 特征融合：FeatureFusionModule
+- 残差块：ResidualBlock
+- 主模型：ImprovedMarkerPredictor
+
+输出文件：
+- marker_predictor.pth: 训练好的模型
+- X_scaler.joblib: 特征标准化器
+- y_scaler.joblib: 标签标准化器
+- training_loss.png: 训练过程可视化
+
+依赖库：
+- numpy
+- torch
+- sklearn
+- joblib
+- matplotlib
+"""
+
 import numpy as np
 import torch
 import torch.nn as nn
